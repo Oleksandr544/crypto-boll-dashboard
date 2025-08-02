@@ -18,7 +18,7 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    url = f"https://api.bybit.com/v5/market/kline?symbol={symbol}&interval={interval}&limit={limit}"
+    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
     data = response.json()
     if "result" in data and "list" in data["result"]:
