@@ -11,37 +11,26 @@ symbol_list = [
     "ADAUSDT", "AVAXUSDT", "LINKUSDT", "MATICUSDT", "DOTUSDT"
 ]
 
-interval = "15"
+interval = "15m"
 limit = 100
 
 @st.cache_data(ttl=30)
-def fetch_klines(symbol):
-    url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}&limit={limit}"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
+def fetch_klines_binance(symbol):
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     try:
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            st.error(f"❌ HTTP {response.status_code} при получении {symbol}")
-            return None
-
+        response = requests.get(url)
+        response.raise_for_status()
         data = response.json()
 
-        if "result" not in data or "list" not in data["result"]:
-            st.error(f"❌ Неправильный ответ от API для {symbol}")
-            return None
-
-        df = pd.DataFrame(data["result"]["list"], columns=[
-            "timestamp", "open", "high", "low", "close", "volume", "turnover"
+        df = pd.DataFrame(data, columns=[
+            "timestamp", "open", "high", "low", "close", "volume", "close_time",
+            "quote_asset_volume", "number_of_trades", "taker_buy_base", "taker_buy_quote", "ignore"
         ])
-        df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ms")
-        df.set_index("timestamp", inplace=True)
+        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
         df = df.astype(float)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
         return df
-
     except Exception as e:
         st.error(f"❌ Ошибка при получении {symbol}: {e}")
         return None
@@ -60,7 +49,6 @@ def bollinger_breakout(df, deviation):
     else:
         return ""
 
-# Настройки
 st.sidebar.title("⚙️ Настройки")
 deviation = st.sidebar.select_slider(
     "Отклонение от линии", 
@@ -73,15 +61,10 @@ st.write(f"**Отклонение**: {deviation}")
 
 signals = []
 
-# Основной цикл
 for symbol in symbol_list:
-    df = fetch_klines(symbol)
-
-    if df is None:
-        continue  # пропускаем если ошибка
-
-    if df.empty:
-        continue  # пропускаем пустой датафрейм
+    df = fetch_klines_binance(symbol)
+    if df is None or df.empty:
+        continue
 
     signal = bollinger_breakout(df, deviation)
     last_price = df["close"].iloc[-1]
@@ -91,7 +74,6 @@ for symbol in symbol_list:
         "Сигнал": signal
     })
 
-# Вывод
 df_signals = pd.DataFrame(signals)
 df_signals = df_signals[df_signals["Сигнал"] != ""]
 
