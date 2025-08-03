@@ -20,7 +20,11 @@ limit = 100
 def fetch_klines(symbol):
     url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
+    try:
     data = response.json()
+except Exception as e:
+    st.warning(f"Ошибка при получении данных по {symbol}: {e}")
+    return pd.DataFrame()
     if "result" in data and "list" in data["result"]:
         df = pd.DataFrame(data["result"]["list"], columns=[
             "timestamp", "open", "high", "low", "close", "volume", "_", "__", "___", "____", "_____"
