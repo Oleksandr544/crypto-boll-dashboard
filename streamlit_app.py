@@ -16,11 +16,16 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    interval = "60"  # интервал свечей (в минутах)
+    interval = "60"
     limit = 100
     url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}&limit={limit}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"  # чтобы API не блокировал ботов
+    }
+
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         if response.status_code != 200:
             st.error(f"❌ HTTP {response.status_code} при получении {symbol}")
             return None
