@@ -93,8 +93,11 @@ signals = []
 
 for symbol in symbol_list:
     df = fetch_klines(symbol)
-    if df.empty:
-        continue
+if df is None:
+    continue  # пропускаем эту пару, если не удалось получить данные
+
+if df.empty:
+    continue  # пропускаем пустой датафрейм
 
     signal = bollinger_breakout(df, deviation)
     last_price = df["close"].iloc[-1]
