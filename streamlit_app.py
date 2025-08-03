@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import datetime
+import time
 import requests
 
 st.set_page_config(page_title="Bollinger Dashboard", layout="wide")
@@ -11,26 +13,30 @@ symbol_list = [
     "ADAUSDT", "AVAXUSDT", "LINKUSDT", "MATICUSDT", "DOTUSDT"
 ]
 
-interval = "15"
+interval = "15"  # в минутах
 limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    url = f"https://api.bybit.com/v2/public/kline/list?symbol={symbol}&interval={interval}&limit={limit}"
+    now = int(time.time())
+    from_time = now - int(limit) * int(interval) * 60
+
+    url = f"https://api.bybit.com/v2/public/kline/list?symbol={symbol}&interval={interval}&limit={limit}&from={from_time}"
     try:
         response = requests.get(url, timeout=10)
         data = response.json()
-        if "result" in data and data["result"]:
-            df = pd.DataFrame(data["result"])
+        if "result" in data and "data" in data["result"] or "result" in data and isinstance(data["result"], list):
+            candles = data["result"]["data"] if "data" in data["result"] else data["result"]
+            df = pd.DataFrame(candles)
             df["open_time"] = pd.to_datetime(df["open_time"], unit="s")
             df.set_index("open_time", inplace=True)
             df["close"] = df["close"].astype(float)
             return df
         else:
-            st.warning(f"Нет данных по {symbol}")
+            raise ValueError("Пустой ответ")
     except Exception as e:
-        st.error(f"Ошибка при получении {symbol}: {e}")
-    return pd.DataFrame()
+        st.warning(f"Ошибка при получении {symbol}: {e}")
+        return pd.DataFrame()
 
 def bollinger_breakout(df, deviation):
     df["MA20"] = df["close"].rolling(window=20).mean()
@@ -53,7 +59,6 @@ deviation = st.sidebar.select_slider("Отклонение от линии", opt
 ], value=2)
 
 st.sidebar.markdown("🕒 Обновление каждые 30 секунд")
-
 st.write(f"**Отклонение**: {deviation}")
 
 data = []
@@ -70,13 +75,10 @@ for symbol in symbol_list:
     })
 
 df_signals = pd.DataFrame(data)
+df_signals = df_signals[df_signals["Сигнал"] != ""]
 
 if df_signals.empty:
-    st.warning("Не удалось получить данные ни по одной паре или нет сигналов.")
+    st.info("Не удалось получить данные ни по одной паре или нет сигналов.")
 else:
-    df_signals = df_signals[df_signals["Сигнал"] != ""]
-    if df_signals.empty:
-        st.info("Нет пробоя по текущим монетам.")
-    else:
-        st.success("Обнаружены сигналы!")
-        st.dataframe(df_signals, use_container_width=True)
+    st.success("Обнаружены сигналы!")
+    st.dataframe(df_signals, use_container_width=True)
