@@ -103,10 +103,13 @@ for symbol in symbol_list:
     })
 
 df_signals = pd.DataFrame(data)
-df_signals = df_signals[df_signals["Сигнал"] != ""]
 
-if df_signals.empty:
-    st.info("Нет пробоя по текущим монетам.")
+if not df_signals.empty and "Сигнал" in df_signals.columns:
+    df_signals = df_signals[df_signals["Сигнал"] != ""]
+    if df_signals.empty:
+        st.info("Нет пробоя по текущим монетам.")
+    else:
+        st.success("Обнаружены сигналы!")
+        st.dataframe(df_signals, use_container_width=True)
 else:
-    st.success("Обнаружены сигналы!")
-    st.dataframe(df_signals, use_container_width=True)
+    st.warning("Не удалось получить данные ни по одной паре.")
