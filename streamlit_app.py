@@ -16,12 +16,10 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    interval = "60"
-    limit = 100
     url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}&limit={limit}"
 
     headers = {
-        "User-Agent": "Mozilla/5.0"  # чтобы API не блокировал ботов
+        "User-Agent": "Mozilla/5.0"
     }
 
     try:
@@ -48,23 +46,6 @@ def fetch_klines(symbol):
         st.error(f"❌ Ошибка при получении {symbol}: {e}")
         return None
 
-        if not candles:
-            st.warning(f"⚠️ Нет данных по {symbol}")
-            return pd.DataFrame()
-
-        df = pd.DataFrame(candles, columns=[
-            "timestamp", "open", "high", "low", "close", "volume", "_", "__"
-        ])
-        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-        df = df.astype(float)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        return df
-
-    except Exception as e:
-        st.error(f"❌ Ошибка при получении {symbol}: {e}")
-        return pd.DataFrame()
-
 def bollinger_breakout(df, deviation):
     df["MA20"] = df["close"].rolling(window=20).mean()
     df["std"] = df["close"].rolling(window=20).std()
@@ -79,6 +60,7 @@ def bollinger_breakout(df, deviation):
     else:
         return ""
 
+# Настройки
 st.sidebar.title("⚙️ Настройки")
 deviation = st.sidebar.select_slider(
     "Отклонение от линии", 
@@ -91,11 +73,12 @@ st.write(f"**Отклонение**: {deviation}")
 
 signals = []
 
+# Основной цикл
 for symbol in symbol_list:
     df = fetch_klines(symbol)
 
     if df is None:
-        continue  # пропускаем эту пару, если не удалось получить данные
+        continue  # пропускаем если ошибка
 
     if df.empty:
         continue  # пропускаем пустой датафрейм
@@ -108,17 +91,7 @@ for symbol in symbol_list:
         "Сигнал": signal
     })
 
-if df.empty:
-    continue  # пропускаем пустой датафрейм
-
-    signal = bollinger_breakout(df, deviation)
-    last_price = df["close"].iloc[-1]
-    signals.append({
-        "Пара": symbol,
-        "Цена": round(last_price, 4),
-        "Сигнал": signal
-    })
-
+# Вывод
 df_signals = pd.DataFrame(signals)
 df_signals = df_signals[df_signals["Сигнал"] != ""]
 
