@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import datetime
 import requests
 
 st.set_page_config(page_title="Bollinger Dashboard", layout="wide")
-
 st.title("📈 Crypto Bollinger Breakout Signals")
 
 symbol_list = [
@@ -13,56 +11,25 @@ symbol_list = [
     "ADAUSDT", "AVAXUSDT", "LINKUSDT", "MATICUSDT", "DOTUSDT"
 ]
 
-interval = "15m"
+interval = "15"
 limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    response = requests.get(url)
+    url = f"https://api.bybit.com/v2/public/kline/list?symbol={symbol}&interval={interval}&limit={limit}"
     try:
+        response = requests.get(url, timeout=10)
         data = response.json()
+        if "result" in data and data["result"]:
+            df = pd.DataFrame(data["result"])
+            df["open_time"] = pd.to_datetime(df["open_time"], unit="s")
+            df.set_index("open_time", inplace=True)
+            df["close"] = df["close"].astype(float)
+            return df
+        else:
+            st.warning(f"Нет данных по {symbol}")
     except Exception as e:
-        st.warning(f"Ошибка при получении данных по {symbol}: {e}")
-        return pd.DataFrame()
-    
-    if isinstance(data, list):
-        df = pd.DataFrame(data, columns=[
-            "timestamp", "open", "high", "low", "close", "volume",
-            "close_time", "quote_asset_volume", "number_of_trades",
-            "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
-        ])
-        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-        df = df.astype(float)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        df["close"] = df["close"].astype(float)
-        return df
-
-    return pd.DataFrame()
-    
-    if "result" in data and "list" in data["result"]:
-        df = pd.DataFrame(data["result"]["list"], columns=[
-            "timestamp", "open", "high", "low", "close", "volume", "_", "__", "___", "____", "_____"
-        ])
-        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-        df = df.astype(float)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        df["close"] = df["close"].astype(float)
-        return df
-
-    return pd.DataFrame()
-    if "result" in data and "list" in data["result"]:
-        df = pd.DataFrame(data["result"]["list"], columns=[
-            "timestamp", "open", "high", "low", "close", "volume", "_", "__", "___", "____", "_____"
-        ])
-        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
-        df = df.astype(float)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        df["close"] = df["close"].astype(float)
-        return df
+        st.error(f"Ошибка при получении {symbol}: {e}")
     return pd.DataFrame()
 
 def bollinger_breakout(df, deviation):
@@ -104,12 +71,12 @@ for symbol in symbol_list:
 
 df_signals = pd.DataFrame(data)
 
-if not df_signals.empty and "Сигнал" in df_signals.columns:
+if df_signals.empty:
+    st.warning("Не удалось получить данные ни по одной паре или нет сигналов.")
+else:
     df_signals = df_signals[df_signals["Сигнал"] != ""]
     if df_signals.empty:
         st.info("Нет пробоя по текущим монетам.")
     else:
         st.success("Обнаружены сигналы!")
         st.dataframe(df_signals, use_container_width=True)
-else:
-    st.warning("Не удалось получить данные ни по одной паре.")
