@@ -16,11 +16,32 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
+    interval = "60"  # интервал свечей (в минутах)
+    limit = 100
     url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}&limit={limit}"
     try:
         response = requests.get(url)
+        if response.status_code != 200:
+            st.error(f"❌ HTTP {response.status_code} при получении {symbol}")
+            return None
+
         data = response.json()
-        candles = data.get("result", {}).get("list", [])
+
+        if "result" not in data or "list" not in data["result"]:
+            st.error(f"❌ Неправильный ответ от API для {symbol}")
+            return None
+
+        df = pd.DataFrame(data["result"]["list"], columns=[
+            "timestamp", "open", "high", "low", "close", "volume", "turnover"
+        ])
+        df["timestamp"] = pd.to_datetime(df["timestamp"].astype("int64"), unit="ms")
+        df.set_index("timestamp", inplace=True)
+        df = df.astype(float)
+        return df
+
+    except Exception as e:
+        st.error(f"❌ Ошибка при получении {symbol}: {e}")
+        return None
 
         if not candles:
             st.warning(f"⚠️ Нет данных по {symbol}")
