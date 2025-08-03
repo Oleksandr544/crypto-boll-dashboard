@@ -18,13 +18,28 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    url = f"https://api.bybit.com/v5/market/kline?symbol={symbol}&interval={interval}&limit={limit}"
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
     try:
         data = response.json()
     except Exception as e:
         st.warning(f"Ошибка при получении данных по {symbol}: {e}")
         return pd.DataFrame()
+    
+    if isinstance(data, list):
+        df = pd.DataFrame(data, columns=[
+            "timestamp", "open", "high", "low", "close", "volume",
+            "close_time", "quote_asset_volume", "number_of_trades",
+            "taker_buy_base_vol", "taker_buy_quote_vol", "ignore"
+        ])
+        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
+        df = df.astype(float)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        df["close"] = df["close"].astype(float)
+        return df
+
+    return pd.DataFrame()
     
     if "result" in data and "list" in data["result"]:
         df = pd.DataFrame(data["result"]["list"], columns=[
