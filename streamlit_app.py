@@ -21,7 +21,7 @@ def fetch_klines(symbol):
     now = int(time.time())
     from_time = now - int(limit) * int(interval) * 60
 
-    url = f"https://api.bybit.com/v2/public/kline/list?symbol={symbol}&interval={interval}&limit={limit}&from={from_time}"
+    url = f"https://api.bybit.com/v5/market/kline?category=spot&symbol={symbol}&interval={interval}&limit={limit}"
     try:
         response = requests.get(url, timeout=10)
         data = response.json()
