@@ -74,7 +74,7 @@ for symbol in symbol_list:
         "Сигнал": signal
     })
 
-)if not data:
+if not data:
     st.error("❌ Не удалось получить данные ни по одной паре. Возможно, проблема с API Bybit.")
 else:
     df_signals = pd.DataFrame(data)
