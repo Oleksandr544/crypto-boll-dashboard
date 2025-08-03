@@ -74,11 +74,14 @@ for symbol in symbol_list:
         "Сигнал": signal
     })
 
-df_signals = pd.DataFrame(data)
-df_signals = df_signals[df_signals["Сигнал"] != ""]
-
-if df_signals.empty:
-    st.info("Не удалось получить данные ни по одной паре или нет сигналов.")
+)if not data:
+    st.error("❌ Не удалось получить данные ни по одной паре. Возможно, проблема с API Bybit.")
 else:
-    st.success("Обнаружены сигналы!")
-    st.dataframe(df_signals, use_container_width=True)
+    df_signals = pd.DataFrame(data)
+    df_signals = df_signals[df_signals["Сигнал"] != ""]
+
+    if df_signals.empty:
+        st.info("Данные получены, но сигналов нет.")
+    else:
+        st.success("Обнаружены сигналы!")
+        st.dataframe(df_signals, use_container_width=True)
