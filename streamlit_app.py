@@ -18,12 +18,25 @@ limit = 100
 
 @st.cache_data(ttl=30)
 def fetch_klines(symbol):
-    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval={interval}&limit={limit}"
+    url = f"https://api.bybit.com/v5/market/kline?symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
     try:
-    data = response.json()
-except Exception as e:
-    st.warning(f"Ошибка при получении данных по {symbol}: {e}")
+        data = response.json()
+    except Exception as e:
+        st.warning(f"Ошибка при получении данных по {symbol}: {e}")
+        return pd.DataFrame()
+    
+    if "result" in data and "list" in data["result"]:
+        df = pd.DataFrame(data["result"]["list"], columns=[
+            "timestamp", "open", "high", "low", "close", "volume", "_", "__", "___", "____", "_____"
+        ])
+        df = df[["timestamp", "open", "high", "low", "close", "volume"]]
+        df = df.astype(float)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        df["close"] = df["close"].astype(float)
+        return df
+
     return pd.DataFrame()
     if "result" in data and "list" in data["result"]:
         df = pd.DataFrame(data["result"]["list"], columns=[
